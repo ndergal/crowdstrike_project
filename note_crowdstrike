@@ -1,0 +1,165 @@
+●	Ability for users to upload files and be shown meta-data about that file. E.g. we run scripts and virus scanners on the files to extract information, 
+○	How does that work? 
+○	What kind of workflow exists there? 
+○	How and where will we store the data?
+○	How will we handle failure in the system?
+
+-----
+
+1. The user upload a file using the REST API. 
+
+POST https://www.virustotal.com/api/v3/files  Body: file Response: AnalysisId (API Gateway with lambda)
+For uploading files smaller than 32MB
+
+Or 
+
+GET https://www.virustotal.com/api/v3/files/upload_url to get a URL to post the file. Generate a token (random guid based64) store in Redis and associate it to the user (using APIKey).
+
+Then POST to <RESPONSE_URL> Body: file Response: AnalysisId (Maybe a container running in Kubernetes or Fargate/EC2) verify the token exists and invalidate it then upload the file to S3.
+
+-----
+
+2. The lambda function or Container handle the file uploaded.
+
+compute MD5, SHA1, SHA256 blabla and determines if already exists.
+
+if doesn't exist
+	Put it in a S3 bucket. Create file entity in DB
+
+Analysis entity in DB, create Relationship between the two. (Can create a websocket endpoint also)
+	
+
+And push into the AWS SNS or Kafka to fan out to lambdas responding to those events. (SNS = invoke lambda / Kafka = lambda consumer batch of events )
+
+if file :
+
+push file_id, file_url, analysis_id, user_id to file analyse topic.
+
+if url: 
+
+	push url, url_id, analysis_id, user_id to url analyse topic
+
+return analysisId
+
+--------
+
+3. The lambda / containers process the incoming message. 
+
+if it's a file, it download the file and run the script against it.
+
+if it's a url it run the script against it.
+
+Then they update the analysis, file, etc using an internal service (rest api, sns, whatever). (can update a websocket also and probably add support for percentage of completion) https://medium.com/event-driven-utopia/a-reference-architecture-for-responsive-asynchronous-task-execution-783bd2a1ed8b
+
+-----
+
+4. Metadata are stored in MongoDB. Use sharding with Hashed index on id to distributed more evenly.
+
+----
+
+○	How will we handle failure in the system?
+
+For a failure in the system we can have logs, metrics and alerts to keep a trace, be able to debug it and maybe notify the creator or the people responsible.
+
+As most of the things are async we can replay failed events (maybe have a count on the replay). if synchronous we can retry with exponential back-offs to leave some time for the service to recover.
+
+We might have timeouts on the scripts also to not run forever and track it. 
+----
+
+●	What Statistics can we track on uploads, internal metrics for understanding system health, etc… 
+○	Where’s a good place to store those? 
+○	What kind of metrics do we want to track?
+
+We can track uptime of each service for each request/processing, scripts runtime for file based on size, errors/failures, number of request per endpoints, time for processing end to end based in size (E2E health status).  
+
+We can "store it" in AWS CloudWatch.
+
+
+----
+
+●	We’d like a 3rd party API that users can build apps on. 
+○	What are some of our endpoints
+○	What auth do we need? 
+○	Provide some sample api request/response example
+○	What does the url look like, what does the response look like?
+
+
+---------------- REST API
+
+auth using Oauth2 with Auth0 or AWS cognito
+
+File API 
+
+POST /api/<version>/files
+
+Authorization: Bearer <token>
+Request Body: File
+
+Response: HTTP 200 {analysisId : <id>}
+		  HTTP 417 "File too large."
+
+
+GET /api/<version>/upload_url (creates transaction id and link it to user in redis)
+
+Authorization: Bearer <token>
+
+Response: HTTP 200 {upload_url : <endpoint_of_upload_api>/{transactionid}
+
+
+POST /_ah/upload/{transaction_id}
+
+Authorization: Bearer <token>
+content-type: multipart/form-data
+Request Body: Multi-part upload body 
+
+
+Response: HTTP 200 {analysis_id : <id>} (deactivate transaction)
+ 	      HTTP 417 File too large
+ 	      HTTP 403 Forbidden
+ 	      HTTP 400 Bad request
+
+GET /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/download 
+
+Authorization: Bearer <token>
+
+redirects you to download URL
+
+GET /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/download_url
+
+Response: HTTP 200 {download_url: <url>}
+
+
+
+GET /api/<version>/analyses/{id}
+
+Authorization: Bearer <token>
+
+Response: HTTP 200 {analysis: Analysis object}
+Response: HTTP 400 Bad request
+
+
+POST /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}
+Authorization: Bearer <token>
+
+Response: HTTP 200 {File : <file>}
+
+
+POST /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyse
+Authorization: Bearer <token>
+
+Response: HTTP 200 {analysisId : <id>}
+
+
+GET /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyses
+Authorization: Bearer <token>
+
+Response: HTTP 200 {analyses: [list of analyses associated with that file]}
+Response: HTTP 400 Bad request
+
+
+GET /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyses/analysis_id
+
+Authorization: Bearer <token>
+
+Response: HTTP 200 {analysis: Analysis object}
+Response: HTTP 400 Bad request
