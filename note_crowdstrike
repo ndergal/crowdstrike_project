@@ -90,7 +90,7 @@ auth using Oauth2 with Auth0 or AWS cognito
 
 File API 
 
-POST /api/<version>/files
+POST /api/v1/files
 
 Authorization: Bearer <token>
 Request Body: File
@@ -99,7 +99,7 @@ Response: HTTP 200 {analysisId : <id>}
 		  HTTP 417 "File too large."
 
 
-GET /api/<version>/upload_url (creates transaction id and link it to user in redis)
+GET /api/v1/upload_url (creates transaction id and link it to user in redis)
 
 Authorization: Bearer <token>
 
@@ -118,19 +118,19 @@ Response: HTTP 200 {analysis_id : <id>} (deactivate transaction)
  	      HTTP 403 Forbidden
  	      HTTP 400 Bad request
 
-GET /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/download 
+GET /api/v1/files/{SHA-256, SHA-1 or MD5 identifying the file}/download 
 
 Authorization: Bearer <token>
 
 redirects you to download URL
 
-GET /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/download_url
+GET /api/v1/files/{SHA-256, SHA-1 or MD5 identifying the file}/download_url
 
 Response: HTTP 200 {download_url: <url>}
 
 
 
-GET /api/<version>/analyses/{id}
+GET /api/v1/analyses/{id}
 
 Authorization: Bearer <token>
 
@@ -138,26 +138,26 @@ Response: HTTP 200 {analysis: Analysis object}
 Response: HTTP 400 Bad request
 
 
-POST /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}
+POST /api/v1/files/{SHA-256, SHA-1 or MD5 identifying the file}
 Authorization: Bearer <token>
 
 Response: HTTP 200 {File : <file>}
 
 
-POST /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyse
+POST /api/v1/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyse
 Authorization: Bearer <token>
 
 Response: HTTP 200 {analysisId : <id>}
 
 
-GET /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyses
+GET /api/v1/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyses
 Authorization: Bearer <token>
 
 Response: HTTP 200 {analyses: [list of analyses associated with that file]}
 Response: HTTP 400 Bad request
 
 
-GET /api/<version>/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyses/analysis_id
+GET /api/v1/files/{SHA-256, SHA-1 or MD5 identifying the file}/analyses/analysis_id
 
 Authorization: Bearer <token>
 
