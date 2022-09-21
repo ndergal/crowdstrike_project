@@ -190,3 +190,185 @@ Authorization: Bearer <token>
 Response: HTTP 200 {analysis: Analysis object}
           HTTP 400 Bad request
 ```
+
+
+# Object models
+
+We store most of our object using MongoDB
+
+With mongo you can enforce a schema on your object. This is not required but it's a good practice !!
+
+## Analysis Object
+
+```
+{       
+    "id": <string>
+    "date": <int:timestamp>,
+    "results": {
+        "<string>": {
+            "category": "<string>",
+            "engine_name": "<string>",
+            "engine_version": "<string>",
+            "engine_update": "<string>",
+            "method": "<string>",
+            "result": "<string>"
+        },
+        "stats": {
+            "confirmed-timeout": <int>,
+            "failure": <int>,
+            "harmless": <int>,
+            "malicious": <int>,
+            "suspicious": <int>,
+            "timeout": <int>,
+            "type-unsupported": <int>,
+            "undetected": <int>
+        },
+        "status": "<string>"      
+}
+```
+
+## File Object
+
+```
+{
+    "metadata": {Objects},
+    "downloadable": <bool>,
+    "first_submission_date": <int:timestamp>,
+    "last_analysis_date": <int:timestamp>,
+    "last_analysis_results": {
+        "<string:engine_name>": {
+            "category": "<string>",
+            "engine_name": "<string>",
+            "engine_update": "<string>",
+            "engine_version": "<string>",
+            "method": "<string>",
+            "result": "<string>"
+        }
+    },
+    "last_analysis_stats": {
+        "confirmed-timeout": <int>,
+        "failure": <int>,
+        "harmless": <int>,
+        "malicious": <int>,
+        "suspicious": <int>,
+        "timeout": <int>,
+        "type-unsupported": <int>,
+        "undetected": <int>
+    },
+    "last_modification_date": <int:timestamp>,
+    "last_submission_date": <int:timestamp>,
+    "md5": "<string>",
+    "meaningful_name": "<string>",
+    "names": [
+        "<strings>",...
+    ],
+    "reputation": <int>,
+    "sandbox_verdicts": {
+        "<string:sandbox_name>": {
+            "category": "<string>",
+            "confidence": <int>,
+            "malware_classification": [
+                "<string>"
+            ],
+            "malware_names": [
+                "<string>"
+            ],
+            "sandbox_name": "<string>"
+        },
+    },
+    "sha1": "<string>",
+    "sha256": "<string>",
+    "sigma_analysis_results": [{
+      "rule_title": "<string>",
+      "rule_source": "<string>",
+      "match_context": [{
+        "values": {
+          "<string>": "<string>"}}],
+      "rule_level": "<string>",
+      "rule_description": "<string>",
+      "rule_author": "<string>",
+      "rule_id": "<string>"
+    }],
+    "sigma_analysis_stats": {
+        "critical": <int>,
+        "high": <int>,
+        "low": <int>,
+        "medium": <int>
+    },
+    "sigma_analysis_summary": {
+        "<string:ruleset_name>": {
+            "critical": <int>,
+            "high": <int>,
+            "low": <int>,
+            "medium": <int>
+        }
+    },
+    "size": <int>,
+    "tags": [
+        "<strings>",...
+    ],
+    "times_submitted": <int>,
+    "total_votes": {
+        "harmless": <int>,
+        "malicious": <int>
+    },
+    "type_description": "<string>",
+    "type_extension": "<string>",
+    "type_tag": "<string>",
+    "unique_sources": <int>,
+    "vhash": "<string>"
+}
+
+```
+
+## User Object
+
+```
+{
+    "user_id": "<string>"
+    "username": "<string>"
+    "email_address": "<string>",
+    "creation_date": <int:timestamp>,
+}
+```
+
+# Detailed workflow
+
+## I. The user upload a file using the REST API
+
+- Alternative 1: The user upload the file using the regular endpoint. It is handled by a lambda function. 
+
+- Alternative 2: The user asks for a upload URL to be able to upload a large file.   
+A lambda function handles the request. It generates an id (random GUID ?) and associates it to the user and store it in Redis with a TTL of 10min (arbitrary time). 
+```
+"transaction:{guid}:{user_id}" : {enabled: true} 
+```
+And returns an url made of the large file upload API and the generated id.  
+The user uses the url to upload the file. It is handled by a container. 
+
+## II. The lambda function or Container handles the file uploaded
+
+It computes the MD5, SHA1, SHA256 and determines if it already exists.  
+If the file doesn't already exist, we create a file entity in DB and put it in the S3 bucket. The file is named after it's md5 hash.  
+We created an Analysis, and create a relationship between the file and the Analysis.
+We push a message into the corresponding SNS topic.
+```
+Message format example: 
+
+{file_id, file_url, analysis_id, user_id}
+```
+
+Then it returns the analysis_id.
+
+## III. Subscribers process the incoming message
+
+It can check if the file_id and file_url are right and correspond to the analysis identified by the id.
+
+notify a topic that an analysis is in progress.
+Run the script against the file.
+Subscribers send results of scripts and notify that the analysis is done over SNS.
+
+
+## IV. The finalizing Service handles the results (Analysis Service?)
+
+The finalizing service handles message comming from workers and add metadatas to the files and analysis objects.
