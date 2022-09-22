@@ -4,6 +4,8 @@ VirusTotal is a online service owned by Google that allows the analysis of files
 
 VirusTotal aggregates many antivirus products and online scan engines called Contributors.
 
+
+
 ## Technologies
 
 The tools proposed for the architecture are mainly fully managed AWS Services.
@@ -35,6 +37,8 @@ The tools proposed for the architecture are mainly fully managed AWS Services.
 4. Subscribers handle the message, notify a topic that an analysis is in progress and run the script against the file.
 5. Subscribers send results of scripts to notify that the analysis is done.
 6. The finalizing service handles message comming from workers and add metadatas to the file in Database
+
+![Diagram](crowdstrike_system_design.drawio.png)
 
 ## 	How and where will we store the data?
 
