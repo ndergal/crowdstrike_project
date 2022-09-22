@@ -10,7 +10,7 @@ The tools proposed for the architecture are mainly fully managed AWS Services.
 
 - **REST APIs**: API Gateway with lambda functions and EKS with python or Java containers
 
-- **Microservices**: EKS (Kubernetes)
+- **Microservices**: ECS (Managed Kubernetes)
 
 - **Authentication**: AWS Cognito or Auth0 with Api Gateway Lambda Authorizer
 
