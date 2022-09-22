@@ -10,7 +10,7 @@ VirusTotal aggregates many antivirus products and online scan engines called Con
 
 The tools proposed for the architecture are mainly fully managed AWS Services.
 
-- **REST APIs**: API Gateway with lambda functions and EKS with python or Java containers
+- **REST APIs**: API Gateway with lambda functions and ECS with python or Java containers
 
 - **Microservices**: ECS (Managed Kubernetes)
 
